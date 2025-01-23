@@ -2,6 +2,7 @@ import uuid
 
 from pydantic import EmailStr
 from sqlmodel import Field, Relationship, SQLModel
+from typing import Optional
 
 
 # Shared properties
@@ -39,11 +40,24 @@ class UpdatePassword(SQLModel):
     new_password: str = Field(min_length=8, max_length=40)
 
 
+# Meeting Model
+class Meeting(SQLModel, table=True):
+    id: int = Field(primary_key=True)
+    title: str = Field(nullable=False)
+    agenda: str = Field(nullable=False)
+    summary: str | None = Field(default=None)
+    owner_id: Optional[uuid.UUID] = Field(
+        sa_column_kwargs={"nullable": True},
+        foreign_key="user.id"
+    )
+    owner: Optional["User"] = Relationship(back_populates="meetings")
+
 # Database model, database table inferred from class name
 class User(UserBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     hashed_password: str
     items: list["Item"] = Relationship(back_populates="owner", cascade_delete=True)
+    meetings: list["Meeting"] = Relationship(back_populates="owner")
 
 
 # Properties to return via API, id is always required
@@ -112,3 +126,22 @@ class TokenPayload(SQLModel):
 class NewPassword(SQLModel):
     token: str
     new_password: str = Field(min_length=8, max_length=40)
+
+
+
+# Meeting Schemas
+class MeetingBase(SQLModel):
+    title: str
+    agenda: str
+    summary: Optional[str] = None
+
+
+class MeetingCreate(MeetingBase):
+    pass
+
+
+class MeetingUpdate(MeetingBase):
+    title: Optional[str] = None
+    agenda: Optional[str] = None
+    summary: Optional[str] = None
+

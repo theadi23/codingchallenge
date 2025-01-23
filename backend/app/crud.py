@@ -4,7 +4,8 @@ from typing import Any
 from sqlmodel import Session, select
 
 from app.core.security import get_password_hash, verify_password
-from app.models import Item, ItemCreate, User, UserCreate, UserUpdate
+from app.models import Item, ItemCreate, User, UserCreate, UserUpdate, Meeting, MeetingCreate, MeetingUpdate
+from typing import Optional
 
 
 def create_user(*, session: Session, user_create: UserCreate) -> User:
@@ -52,3 +53,44 @@ def create_item(*, session: Session, item_in: ItemCreate, owner_id: uuid.UUID) -
     session.commit()
     session.refresh(db_item)
     return db_item
+
+def create_meeting(*, session: Session, meeting_in: MeetingCreate, owner_id: Optional[uuid.UUID] = None) -> Meeting:
+    meeting_data = meeting_in.dict()
+    meeting_data["owner_id"] = owner_id  # Explicitly add the owner_id (can be None)
+    
+    db_meeting = Meeting(**meeting_data)
+    session.add(db_meeting)
+    session.commit()
+    session.refresh(db_meeting)
+    return db_meeting
+
+
+def get_meeting(*, session: Session, meeting_id: int) -> Meeting | None:
+    statement = select(Meeting).where(Meeting.id == meeting_id)
+    return session.exec(statement).first()
+
+
+def get_all_meetings(*, session: Session) -> list[Meeting]:
+    statement = select(Meeting)
+    return session.exec(statement).all()
+
+
+def update_meeting(*, session: Session, meeting_id: int, meeting_in: MeetingUpdate) -> Meeting | None:
+    db_meeting = get_meeting(session=session, meeting_id=meeting_id)
+    if not db_meeting:
+        return None
+    meeting_data = meeting_in.model_dump(exclude_unset=True)
+    db_meeting.sqlmodel_update(meeting_data)
+    session.add(db_meeting)
+    session.commit()
+    session.refresh(db_meeting)
+    return db_meeting
+
+
+def delete_meeting(*, session: Session, meeting_id: int) -> Meeting | None:
+    db_meeting = get_meeting(session=session, meeting_id=meeting_id)
+    if not db_meeting:
+        return None
+    session.delete(db_meeting)
+    session.commit()
+    return db_meeting
